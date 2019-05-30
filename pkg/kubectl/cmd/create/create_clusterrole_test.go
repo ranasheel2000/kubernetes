@@ -21,12 +21,9 @@ import (
 
 	rbac "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/rest/fake"
 	cmdtesting "k8s.io/kubernetes/pkg/kubectl/cmd/testing"
 	"k8s.io/kubernetes/pkg/kubectl/scheme"
@@ -39,7 +36,7 @@ func TestCreateClusterRole(t *testing.T) {
 	defer tf.Cleanup()
 
 	tf.Client = &fake.RESTClient{}
-	tf.ClientConfigVal = defaultClientConfig()
+	tf.ClientConfigVal = cmdtesting.DefaultClientConfig()
 
 	tests := map[string]struct {
 		verbs               string
@@ -53,8 +50,8 @@ func TestCreateClusterRole(t *testing.T) {
 			verbs:     "get,watch,list",
 			resources: "pods,pods",
 			expectedClusterRole: &rbac.ClusterRole{
-				TypeMeta: v1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
-				ObjectMeta: v1.ObjectMeta{
+				TypeMeta: metav1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
+				ObjectMeta: metav1.ObjectMeta{
 					Name: clusterRoleName,
 				},
 				Rules: []rbac.PolicyRule{
@@ -71,8 +68,8 @@ func TestCreateClusterRole(t *testing.T) {
 			verbs:     "get,watch,list",
 			resources: "pods,deployments.extensions",
 			expectedClusterRole: &rbac.ClusterRole{
-				TypeMeta: v1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
-				ObjectMeta: v1.ObjectMeta{
+				TypeMeta: metav1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
+				ObjectMeta: metav1.ObjectMeta{
 					Name: clusterRoleName,
 				},
 				Rules: []rbac.PolicyRule{
@@ -95,8 +92,8 @@ func TestCreateClusterRole(t *testing.T) {
 			verbs:          "get",
 			nonResourceURL: "/logs/,/healthz",
 			expectedClusterRole: &rbac.ClusterRole{
-				TypeMeta: v1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
-				ObjectMeta: v1.ObjectMeta{
+				TypeMeta: metav1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
+				ObjectMeta: metav1.ObjectMeta{
 					Name: clusterRoleName,
 				},
 				Rules: []rbac.PolicyRule{
@@ -112,8 +109,8 @@ func TestCreateClusterRole(t *testing.T) {
 			nonResourceURL: "/logs/,/healthz",
 			resources:      "pods",
 			expectedClusterRole: &rbac.ClusterRole{
-				TypeMeta: v1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
-				ObjectMeta: v1.ObjectMeta{
+				TypeMeta: metav1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
+				ObjectMeta: metav1.ObjectMeta{
 					Name: clusterRoleName,
 				},
 				Rules: []rbac.PolicyRule{
@@ -133,8 +130,8 @@ func TestCreateClusterRole(t *testing.T) {
 		"test-aggregation-rules": {
 			aggregationRule: "foo1=foo2,foo3=foo4",
 			expectedClusterRole: &rbac.ClusterRole{
-				TypeMeta: v1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
-				ObjectMeta: v1.ObjectMeta{
+				TypeMeta: metav1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
+				ObjectMeta: metav1.ObjectMeta{
 					Name: clusterRoleName,
 				},
 				AggregationRule: &rbac.AggregationRule{
@@ -512,16 +509,5 @@ func TestClusterRoleValidate(t *testing.T) {
 				t.Errorf("%s: unexpected error: %v", name, err)
 			}
 		})
-	}
-}
-
-func defaultClientConfig() *restclient.Config {
-	return &restclient.Config{
-		APIPath: "/api",
-		ContentConfig: restclient.ContentConfig{
-			NegotiatedSerializer: scheme.Codecs,
-			ContentType:          runtime.ContentTypeJSON,
-			GroupVersion:         &schema.GroupVersion{Version: "v1"},
-		},
 	}
 }

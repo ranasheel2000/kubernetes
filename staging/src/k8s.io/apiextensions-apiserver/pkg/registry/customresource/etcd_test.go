@@ -91,6 +91,7 @@ func newStorage(t *testing.T) (customresource.CustomResourceStorage, *etcdtestin
 
 	storage := customresource.NewStorage(
 		schema.GroupResource{Group: "mygroup.example.com", Resource: "noxus"},
+		kind,
 		schema.GroupVersionKind{Group: "mygroup.example.com", Version: "v1beta1", Kind: "NoxuItemList"},
 		customresource.NewStrategy(
 			typer,
@@ -380,6 +381,10 @@ func TestScaleGet(t *testing.T) {
 	}
 
 	want := &autoscalingv1.Scale{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Scale",
+			APIVersion: "autoscaling/v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              cr.GetName(),
 			Namespace:         metav1.NamespaceDefault,

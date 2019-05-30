@@ -21,8 +21,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/golang/glog"
 	"k8s.io/api/admission/v1beta1"
+	"k8s.io/klog"
 )
 
 const (
@@ -35,7 +35,7 @@ const (
 )
 
 func mutateCustomResource(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
-	glog.V(2).Info("mutating custom resource")
+	klog.V(2).Info("mutating custom resource")
 	cr := struct {
 		metav1.ObjectMeta
 		Data map[string]string
@@ -44,7 +44,7 @@ func mutateCustomResource(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse
 	raw := ar.Request.Object.Raw
 	err := json.Unmarshal(raw, &cr)
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return toAdmissionResponse(err)
 	}
 
@@ -63,26 +63,38 @@ func mutateCustomResource(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse
 }
 
 func admitCustomResource(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
-	glog.V(2).Info("admitting custom resource")
+	klog.V(2).Info("admitting custom resource")
 	cr := struct {
 		metav1.ObjectMeta
 		Data map[string]string
 	}{}
 
-	raw := ar.Request.Object.Raw
+	var raw []byte
+	if ar.Request.Operation == v1beta1.Delete {
+		raw = ar.Request.OldObject.Raw
+	} else {
+		raw = ar.Request.Object.Raw
+	}
 	err := json.Unmarshal(raw, &cr)
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return toAdmissionResponse(err)
 	}
 
 	reviewResponse := v1beta1.AdmissionResponse{}
 	reviewResponse.Allowed = true
 	for k, v := range cr.Data {
-		if k == "webhook-e2e-test" && v == "webhook-disallow" {
+		if k == "webhook-e2e-test" && v == "webhook-disallow" &&
+			(ar.Request.Operation == v1beta1.Create || ar.Request.Operation == v1beta1.Update) {
 			reviewResponse.Allowed = false
 			reviewResponse.Result = &metav1.Status{
 				Reason: "the custom resource contains unwanted data",
+			}
+		}
+		if k == "webhook-e2e-test" && v == "webhook-nondeletable" && ar.Request.Operation == v1beta1.Delete {
+			reviewResponse.Allowed = false
+			reviewResponse.Result = &metav1.Status{
+				Reason: "the custom resource cannot be deleted because it contains unwanted key and value",
 			}
 		}
 	}

@@ -1,6 +1,6 @@
 # Kubernetes
 
-[![Submit Queue Widget]][Submit Queue] [![GoDoc Widget]][GoDoc] [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/569/badge)](https://bestpractices.coreinfrastructure.org/projects/569)
+[![GoDoc Widget]][GoDoc] [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/569/badge)](https://bestpractices.coreinfrastructure.org/projects/569)
 
 <img src="https://github.com/kubernetes/kubernetes/raw/master/logo/logo.png" width="100">
 
@@ -42,17 +42,17 @@ If you want to build Kubernetes right away there are two options:
 ##### You have a working [Go environment].
 
 ```
-$ go get -d k8s.io/kubernetes
-$ cd $GOPATH/src/k8s.io/kubernetes
-$ make
+go get -d k8s.io/kubernetes
+cd $GOPATH/src/k8s.io/kubernetes
+make
 ```
 
 ##### You have a working [Docker environment].
 
 ```
-$ git clone https://github.com/kubernetes/kubernetes
-$ cd kubernetes
-$ make quick-release
+git clone https://github.com/kubernetes/kubernetes
+cd kubernetes
+make quick-release
 ```
 
 For the full story, head over to the [developer's documentation].
@@ -79,8 +79,6 @@ That said, if you have questions, reach out to us
 [interactive tutorial]: https://kubernetes.io/docs/tutorials/kubernetes-basics
 [kubernetes.io]: https://kubernetes.io
 [Scalable Microservices with Kubernetes]: https://www.udacity.com/course/scalable-microservices-with-kubernetes--ud615
-[Submit Queue]: https://submit-queue.k8s.io/#/ci
-[Submit Queue Widget]: https://submit-queue.k8s.io/health.svg?v=1
 [troubleshooting guide]: https://kubernetes.io/docs/tasks/debug-application-cluster/troubleshooting/
 
 [![Analytics](https://kubernetes-site.appspot.com/UA-36037335-10/GitHub/README.md?pixel)]()

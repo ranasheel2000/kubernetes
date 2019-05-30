@@ -40,8 +40,8 @@ type CustomResourceStorage struct {
 	Scale          *ScaleREST
 }
 
-func NewStorage(resource schema.GroupResource, listKind schema.GroupVersionKind, strategy customResourceStrategy, optsGetter generic.RESTOptionsGetter, categories []string, tableConvertor rest.TableConvertor) CustomResourceStorage {
-	customResourceREST, customResourceStatusREST := newREST(resource, listKind, strategy, optsGetter, categories, tableConvertor)
+func NewStorage(resource schema.GroupResource, kind, listKind schema.GroupVersionKind, strategy customResourceStrategy, optsGetter generic.RESTOptionsGetter, categories []string, tableConvertor rest.TableConvertor) CustomResourceStorage {
+	customResourceREST, customResourceStatusREST := newREST(resource, kind, listKind, strategy, optsGetter, categories, tableConvertor)
 
 	s := CustomResourceStorage{
 		CustomResource: customResourceREST,
@@ -75,9 +75,14 @@ type REST struct {
 }
 
 // newREST returns a RESTStorage object that will work against API services.
-func newREST(resource schema.GroupResource, listKind schema.GroupVersionKind, strategy customResourceStrategy, optsGetter generic.RESTOptionsGetter, categories []string, tableConvertor rest.TableConvertor) (*REST, *StatusREST) {
+func newREST(resource schema.GroupResource, kind, listKind schema.GroupVersionKind, strategy customResourceStrategy, optsGetter generic.RESTOptionsGetter, categories []string, tableConvertor rest.TableConvertor) (*REST, *StatusREST) {
 	store := &genericregistry.Store{
-		NewFunc: func() runtime.Object { return &unstructured.Unstructured{} },
+		NewFunc: func() runtime.Object {
+			// set the expected group/version/kind in the new object as a signal to the versioning decoder
+			ret := &unstructured.Unstructured{}
+			ret.SetGroupVersionKind(kind)
+			return ret
+		},
 		NewListFunc: func() runtime.Object {
 			// lists are never stored, only manufactured, so stomp in the right kind
 			ret := &unstructured.UnstructuredList{}
@@ -263,7 +268,15 @@ func (r *ScaleREST) Update(ctx context.Context, name string, objInfo rest.Update
 	}
 	cr.SetResourceVersion(scale.ResourceVersion)
 
-	obj, _, err = r.store.Update(ctx, cr.GetName(), rest.DefaultUpdatedObjectInfo(cr), createValidation, updateValidation, false, options)
+	obj, _, err = r.store.Update(
+		ctx,
+		cr.GetName(),
+		rest.DefaultUpdatedObjectInfo(cr),
+		toScaleCreateValidation(createValidation, r.specReplicasPath, r.statusReplicasPath, r.labelSelectorPath),
+		toScaleUpdateValidation(updateValidation, r.specReplicasPath, r.statusReplicasPath, r.labelSelectorPath),
+		false,
+		options,
+	)
 	if err != nil {
 		return nil, false, err
 	}
@@ -274,6 +287,30 @@ func (r *ScaleREST) Update(ctx context.Context, name string, objInfo rest.Update
 		return nil, false, apierrors.NewBadRequest(err.Error())
 	}
 	return newScale, false, err
+}
+
+func toScaleCreateValidation(f rest.ValidateObjectFunc, specReplicasPath, statusReplicasPath, labelSelectorPath string) rest.ValidateObjectFunc {
+	return func(obj runtime.Object) error {
+		scale, _, err := scaleFromCustomResource(obj.(*unstructured.Unstructured), specReplicasPath, statusReplicasPath, labelSelectorPath)
+		if err != nil {
+			return err
+		}
+		return f(scale)
+	}
+}
+
+func toScaleUpdateValidation(f rest.ValidateObjectUpdateFunc, specReplicasPath, statusReplicasPath, labelSelectorPath string) rest.ValidateObjectUpdateFunc {
+	return func(obj, old runtime.Object) error {
+		newScale, _, err := scaleFromCustomResource(obj.(*unstructured.Unstructured), specReplicasPath, statusReplicasPath, labelSelectorPath)
+		if err != nil {
+			return err
+		}
+		oldScale, _, err := scaleFromCustomResource(old.(*unstructured.Unstructured), specReplicasPath, statusReplicasPath, labelSelectorPath)
+		if err != nil {
+			return err
+		}
+		return f(newScale, oldScale)
+	}
 }
 
 // scaleFromCustomResource returns a scale subresource for a customresource and a bool signalling wether
@@ -305,6 +342,11 @@ func scaleFromCustomResource(cr *unstructured.Unstructured, specReplicasPath, st
 	}
 
 	scale := &autoscalingv1.Scale{
+		// Populate apiVersion and kind so conversion recognizes we are already in the desired GVK and doesn't try to convert
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling/v1",
+			Kind:       "Scale",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              cr.GetName(),
 			Namespace:         cr.GetNamespace(),
